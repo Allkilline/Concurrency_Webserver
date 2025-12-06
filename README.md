@@ -134,7 +134,7 @@ In another terminal:
 
 ```bash
 curl http://localhost:8000/small.html
-curl http://localhost:8000;huge.html
+curl http://localhost:8000/huge.html
 ```
 
 ### **Run Automated Tests
