@@ -1,383 +1,176 @@
-# CS5204 - Concurrency Web-server
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-In this assignment, you will be developing a concurrent web server. To
-simplify this project, we are providing you with the code for a non-concurrent
-(but working) web server. This basic web server operates with only a single
-thread; it will be your job to make the web server multi-threaded so that it
-can handle multiple requests at the same time.
 
-There will be two main tasks as part of this assignment:
+# Concurrency Web Server
 
-1) You will be expected to do some reading about the threads system and concurrency web server. The deliverable of the first task is to return a brief paragraph explaining what is the meaning of concurrency, what are the problems occured with concurrency, how to prevent them, and what you need to consider on developing concurrent web server based on previous answers. Write a brief paragraph with your own sentences.
+A multi-threaded HTTP/1.0 web server written in C, featuring a configurable thread pool, bounded scheduler queue, and secure filesystem sandboxing.
+Originally built for a university concurrency/OS course, later reorganized and refined for clarity and maintainability.
 
-2) You will be developing the concurrent web server with the basic code of non-concurrent web server. Your job is extending wserver code to be a multi-threaded web server with scheduler, so it can concurrently take requests from clients and wisely serve to them. Read the rest of this handout carefully for all the details you will need throughout this assignment.
+---
 
-# Task 1: Background Study [15 Points]
+## Overview
+This project implements a miniature but realistic HTTP web server supporting concurrent clients via:
 
-In this part, you should take the time to get familar with threads system and web server. As like previous projects, we have the reading list below from OSTEP book. Also, there are some reading about how web server-client work with HTTP request-server relationship. Read enough to have an understanding of the fundamentals and how to get going, you can always refer back to the materials as you work on the other tasks.
+* **Thread pool** (fixed number of worker threads)
+* **Scheduler / bounded buffer** (producer / consumer queue)
+* **Static file serving** from a configurable basedir
+* **SFF scheduling** Follows a First Job First (SJF) scheduling
+* **Parallel request handling** using POSIX threads.
 
-- [OSTEP: Concurrency: An Introduction](http://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf) [REQUIRED]
-- [OSTEP: Interlude: Thread API](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf) [REQUIRED]
-- [OSTEP: Locks](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf) [STRONGLY RECOMMENDED]
-- [OSTEP: Condition Variables](http://pages.cs.wisc.edu/~remzi/OSTEP/threads-cv.pdf) [STRONGLY RECOMMENDED]
-- [OSTEP: Event-based Concurrency](http://pages.cs.wisc.edu/~remzi/OSTEP/threads-events.pdf) [RECOMMENDED]
+Also includes:  
+* A small HTTP client (`wclient`)
+* Test scripts for concurrency
+* Example static files (`small.html`, `huge.html`, etc)
 
-**As part of the first task of this assignment, you are required to read the "Concurrency: An Introduction," "Interlude: Thread API" and below Web server reading. Then, provide a breif paragraph of what is the concurrency (both in terms of Operating System and Web server), what are the potential problems occured with concurrency, how to prevent them, and what you need to consider on developing concurrent web server based on previous answers in your own words. There is no minimum word limit, so it can be very brief but it should convey your understanding of crash consistency. The paragraph should be in pdf format.**
+The goal is to demonstrate correct synchronization, scheduling and server concurrency design using C and POSIX threads.
 
-## HTTP Background
+---
 
-Before describing what you will be implementing in this project, we will
-provide a very brief overview of how a classic web server works, and the HTTP
-protocol (version 1.0) used to communicate with it; although web browsers and
-servers have [evolved a lot over the
-years](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Evolution_of_HTTP),
-the old versions still work and give you a good start in understanding how
-things work. Our goal in providing you with a basic web server is that you can
-be shielded from learning all of the details of network connections and the
-HTTP protocol needed to do the project; however, the network code has been
-greatly simplified and is fairly understandable should you choose to to study
-it.
+## Project Structure
 
-Classic web browsers and web servers interact using a text-based protocol
-called **HTTP** (**Hypertext Transfer Protocol**). A web browser opens a
-connection to a web server and requests some content with HTTP. The web server
-responds with the requested content and closes the connection. The browser
-reads the content and displays it on the screen.
+```text
 
-HTTP is built on top of the **TCP/IP** protocol suite provided by the
-operating system. Together, TPC and IP ensure that messages are routed to
-their correct destination, get from source to destination reliably in the face
-of failure, and do not overly congest the network by sending too many messages
-at once, among other features. To learn more about networks, take a networking
-class (or many!), or read [this free book](https://book.systemsapproach.org).
-
-Each piece of content on the web server is associated with a file in the
-server's file system. The simplest is *static* content, in which a client
-sends a request just to read a specific file from the server. Slightly more
-complex is *dynamic* content, in which a client requests that an executable
-file be run on the web server and its output returned to the client.
-Each file has a unique name known as a **URL** (**Universal Resource
-Locator**). 
-
-As a simple example, let's say the client browser wants to fetch static
-content (i.e., just some file) from a web server running on some machine.  The
-client might then type in the following URL to the browser:
-`http://www.cs.wisc.edu/index.html`. This URL identifies that the HTTP
-protocol is to be used, and that an HTML file in the root directory (`/`) of
-the web server called `index.html` on the host machine `www.cs.wisc.edu`
-should be fetched.
-
-The web server is not just uniquely identified by which machine it is running
-on but also the **port** it is listening for connections upon. Ports are a
-communication abstraction that allow multiple (possibly independent) network
-communications to happen concurrently upon a machine; for example, the web
-server might be receiving an HTTP request upon port 80 while a mail server is
-sending email out using port 25. By default, web servers are expected to run
-on port 80 (the well-known HTTP port number), but sometimes (as in this
-project), a different port number will be used. To fetch a file from a web
-server running at a different port number (say 8000), specify the port number
-directly in the URL, e.g., `http://www.cs.wisc.edu:8000/index.html`.
-
-URLs for executable files (i.e., dynamic content) can include program
-arguments after the file name. For example, to just run a program (`test.cgi`)
-without any arguments, the client might use the URL
-`http://www.cs.wisc.edu/test.cgi`. To specify more arguments, the `?` and `&`
-characters are used, with the `?` character to separate the file name from the
-arguments and the `& character to separate each argument from the others.  For
-example, `http://www.cs.wisc.edu/test.cgi?x=10&y=20` can be used to send
-multiple arguments `x` and `y` and their respective values to the program
-`test.cgi`. The program being run is called a **CGI program** (short for
-[Common Gateway
-Interface](https://en.wikipedia.org/wiki/Common_Gateway_Interface); yes, this
-is a terrible name); the arguments are passed into the program as part of the
-[`QUERY_STRING`](https://en.wikipedia.org/wiki/Query_string) environment
-variable, which the program can then parse to access these arguments.
-
-## The HTTP Request
-
-When a client (e.g., a browser) wants to fetch a file from a machine, the
-process starts by sending a machine a message. But what exactly is in the body
-of that message? These *request contents*, and the subsequent *reply
-contents*, are specified precisely by the HTTP protocol.
-
-Let's start with the request contents, sent from the web browser to the
-server. This HTTP request consists of a request line, followed by zero or more
-request headers, and finally an empty text line. A request line has the form:
-`method uri version`. The `method` is usually `GET`, which tells the web
-server that the client simply wants to read the specified file; however, other
-methods exist (e.g., `POST`). The `uri` is the file name, and perhaps optional
-arguments (in the case of dynamic content). Finally, the `version` indicates
-the version of the HTTP protocol that the web client is using (e.g.,
-HTTP/1.0).
-
-The HTTP response (from the server to the browser) is similar; it consists of
-a response line, zero or more response headers, an empty text line, and
-finally the interesting part, the response body. A response line has the form
-version `status message`. The `status` is a three-digit positive integer that
-indicates the state of the request; some common states are `200` for `OK`,
-`403` for `Forbidden` (i.e., the client can't access that file), and `404` for
-`File Not Found` (the famous error). Two important lines in the header are
-`Content-Type`, which tells the client the type of the content in the response
-body (e.g., HTML or gif or otherwise) and `Content-Length`, which indicates
-the file size in bytes.
-
-For this project, you don't really need to know this information about HTTP
-unless you want to understand the details of the code we have given you. You
-will not need to modify any of the procedures in the web server that deal with
-the HTTP protocol or network connections. However, it's always good to learn
-more, isn't it?
-
-## A Basic Web Server
-
-The code for the web server is available in this repository.  You can compile
-the files herein by simply typing `make`. Compile and run this basic web
-server before making any changes to it! `make clean` removes .o files and
-executables and lets you do a clean build.
-
-When you run this basic web server, you need to specify the port number that
-it will listen on; ports below number 1024 are *reserved* (see the list
-[here](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml))
-so you should specify port numbers that are greater than 1023 to avoid this
-reserved range; the max is 65535. Be wary: if running on a shared machine, you
-could conflict with others and thus have your server fail to bind to the
-desired port. If this happens, try a different number!
-
-When you then connect your web browser to this server, make sure that
-you specify this same port. For example, assume that you are running on
-`bumble21.cs.wisc.edu` and use port number 8003; copy your favorite HTML file
-to the directory that you start the web server from. Then, to view this file
-from a web browser (running on the same or a different machine), use the url
-`bumble21.cs.wisc.edu:8003/favorite.html`. If you run the client and web
-server on the same machine, you can just use the hostname `localhost` as a
-convenience, e.g., `localhost:8003/favorite.html`.
-
-To make the project a bit easier, we are providing you with a minimal web
-server, consisting of only a few hundred lines of C code. As a result, the
-server is limited in its functionality; it does not handle any HTTP requests
-other than `GET`, understands only a few content types, and supports only the
-`QUERY_STRING` environment variable for CGI programs. This web server is also
-not very robust; for example, if a web client closes its connection to the
-server, it may trip an assertion in the server causing it to exit. We do not
-expect you to fix these problems (though you can, if you like, you know, for
-fun).
-
-Helper functions are provided to simplify error checking.  A wrapper calls the
-desired function and immediately terminate if an error occurs. The wrappers
-are found in the file `io-helper.h`); more about this below.  One should
-always check error codes, even if all you do in response is exit; dropping
-errors silently is **BAD C PROGRAMMING** and should be avoided at all costs.
-
-# Task 2: Project Implementations
-
-In this project, you will be adding three key pieces (and one bonus piece for extra credit!) of functionality to the basic web server. 
-First, you will make the web server multi-threaded. Second, you will implement the Smallest File First (SFF) scheduling policy so that requests may be serviced in different order (according to file size). 
-Third, after the second piece is done, you should add a feature that prevents starvation of large file with the SFF scheduling policy.
-
-## Part 1: Multi-threaded [35 Points]
- 
-The basic web server that we provided has a single thread of
-control. Single-threaded web servers suffer from a fundamental performance
-problem in that only a single HTTP request can be serviced at a time. Thus,
-every other client that is accessing this web server must wait until the
-current http request has finished; this is especially a problem if the current
-HTTP request is a long-running CGI program or is resident only on disk (i.e.,
-is not in memory). Thus, the most important extension that you will be adding
-is to make the basic web server multi-threaded.
-
-The simplest approach to building a multi-threaded server is to spawn a new
-thread for every new http request. The OS will then schedule these threads
-according to its own policy. The advantage of creating these threads is that
-now short requests will not need to wait for a long request to complete;
-further, when one thread is blocked (i.e., waiting for disk I/O to finish) the
-other threads can continue to handle other requests. However, the drawback of
-the one-thread-per-request approach is that the web server pays the overhead
-of creating a new thread on every request.
-
-Therefore, the generally preferred approach for a multi-threaded server is to
-create a fixed-size *pool* of worker threads when the web server is first
-started. With the pool-of-threads approach, each thread is blocked until there
-is an http request for it to handle. Therefore, if there are more worker
-threads than active requests, then some of the threads will be blocked,
-waiting for new HTTP requests to arrive; if there are more requests than
-worker threads, then those requests will need to be buffered until there is a
-ready thread.
-
-In your implementation, you must have a master thread that begins by creating
-a pool of worker threads, the number of which is specified on the command
-line. Your master thread is then responsible for accepting new HTTP
-connections over the network and placing the descriptor for this connection
-into a fixed-size buffer; in your basic implementation, the master thread
-should not read from this connection. The number of elements in the buffer is
-also specified on the command line. Note that the existing web server has a
-single thread that accepts a connection and then immediately handles the
-connection; in your web server, this thread should place the connection
-descriptor into a fixed-size buffer and return to accepting more connections.
-
-Each worker thread is able to handle both static and dynamic requests. A
-worker thread wakes when there is an HTTP request in the queue; when there are
-multiple HTTP requests available, which request is handled depends upon the
-scheduling policy, described below. Once the worker thread wakes, it performs
-the read on the network descriptor, obtains the specified content (by either
-reading the static file or executing the CGI process), and then returns the
-content to the client by writing to the descriptor. The worker thread then
-waits for another HTTP request.
-
-Note that the master thread and the worker threads are in a producer-consumer
-relationship and require that their accesses to the shared buffer be
-synchronized. Specifically, the master thread must block and wait if the
-buffer is full; a worker thread must wait if the buffer is empty. In this
-project, you are required to use condition variables. Note: if your
-implementation performs any busy-waiting (or spin-waiting) instead, you will
-be heavily penalized.
-
-Side note: do not be confused by the fact that the basic web server we provide
-forks a new process for each CGI process that it runs. Although, in a very
-limited sense, the web server does use multiple processes, it never handles
-more than a single request at a time; the parent process in the web server
-explicitly waits for the child CGI process to complete before continuing and
-accepting more HTTP requests. When making your server multi-threaded, you
-should not modify this section of the code.
-
-## Part 2: Scheduling Policies [35 Points]
-
-In this project, you will implement a Smallest File First (SFF) scheduling policy. 
-Note that when your web server has multiple worker threads running
-(the number of which is specified on the command line), you will not have any
-control over which thread is actually scheduled at any given time by the
-OS. Your role in scheduling is to determine which HTTP request should be
-handled by each of the waiting worker threads in your web server.
-
-- **Smallest File First (SFF)**: When a worker thread wakes, it handles the
-request for the smallest file. This policy approximates Shortest Job First to
-the extent that the size of the file is a good prediction of how long it takes
-to service that request. Requests for static and dynamic content may be
-intermixed, depending upon the sizes of those files. You will also note
-that the SFF policy requires that something be known about each request (e.g.,
-the size of the file) before the requests can be scheduled. Thus, to support
-this scheduling policy, you will need to do some initial processing of the
-request (hint: using `stat()` on the filename) outside of the worker threads;
-you will probably want the master thread to perform this work, which requires
-that it read from the network descriptor.
-
-## Part 3: Preventing Starvation of Large File [15 Points]
-
-After you implement the SFF scheduling policy, you will notifiy that it can
-lead to the starvation of requests for large files. Imagine a client requests for 
-a large file and millions of smaller files. The large file is never processed until 
-millions of smaller files are served.
-
-You can prevent the starvation of large files by giving higher priority to the file 
-that waits enough time to be served. Or, you can intentionally serve the file with 
-lowest priority at certain time. Feel free to design your scheduling policy to prevent starvation.
-
-## Bonus Credit: Security [10 Points]
-
-Running a networked server can be dangerous, especially if you are not
-careful. Thus, security is something you should consider carefully when
-creating a web server. One thing you should always make sure to do is not
-leave your server running beyond testing, thus leaving open a potential
-backdoor into files in your system.
-
-Your system should also make sure to constrain file requests to stay within
-the sub-tree of the file system hierarchy, rooted at the base working
-directory that the server starts in. You must take steps to ensure that
-pathnames that are passed in do not refer to files outside of this sub-tree. 
-One simple (perhaps overly conservative) way to do this is to reject any
-pathname with `..` in it, thus avoiding any traversals up the file system
-tree. More sophisticated solutions could use `chroot()` or Linux containers,
-but perhaps those are beyond the scope of the project.
-
-If you successfully implement this part, you will earn bonus credit.
-**Bonus credit only covers lost points in this project (You cannot transfer it to other projects)**.
-You will not lose your points even though you will not implement this.
-
-## Command-line Parameters
-
-Your C program must be invoked exactly as follows:
-
-```bash
-$ ./wserver [-d basedir] [-p port] [-t threads] [-b buffers]
+Concurrency_Webserver/
+├── src/                  # C source files
+│   ├── wserver.c         # Main server logic, argument parsing, setup
+│   ├── wclient.c         # Simple HTTP client for testing
+│   ├── io_helper.c       # Socket utilities, HTTP helpers
+│   ├── request.c         # request_handle(), parse URI, serve files
+│   ├── scheduler.c       # Bounded buffer queue (producer/consumer)
+│   └── thread_pool.c     # Worker threads that process requests
+│
+├── include/              # C header files
+│   ├── io_helper.h
+│   ├── request.h
+│   ├── thread_pool.h
+│   └── scheduler.h
+│
+├── www/                  # Static HTML content served to clients
+│   ├── small.html
+│   ├── huge.html
+│   └── big.html
+│
+├── tests/                # Automated test scripts
+│   └── test_sff.sh       # Stress test for SFF scheduling
+│
+├── docs/                 # Project report / PDF writeup
+│   └── Webserver_Report.pdf  (example)
+│
+├── Makefile              # Build file
+└── README.md             # Documentation (this file)
 ```
 
-The command line arguments to your web server are to be interpreted as
-follows.
+---
 
-- **basedir**: this is the root directory from which the web server should
-  operate. The server should try to ensure that file accesses do not access
-  files above this directory in the file-system hierarchy. Default: current
-  working directory (e.g., `.`).
-- **port**: the port number that the web server should listen on; the basic web
-  server already handles this argument. Default: 10000.
-- **threads**: the number of worker threads that should be created within the web
-  server. Must be a positive integer. Default: 1.
-- **buffers**: the number of request connections that can be accepted at one
-  time. Must be a positive integer. Note that it is not an error for more or
-  less threads to be created than buffers. Default: 1.
+## Core Components
 
-For example, you could run your program as:
+`wserver.c` - **Main Server**
+* Parses command-line flags (`-d`, `-p`, `-t`, `-b`)
+* Sets basedir (`chdir()`)
+* Opens the listening socket
+* Spawns the thread pool
+* Pushes incoming connections into the scheduler queue
+
+`scheduler.c` - **Bounded request queue**
+* Implements the producer/consumer model
+* Controls how requests are ordered (SFF)
+* Blocks when the buffer is full/empty
+
+`thread_pool.c` - **Worker threads**
+* Dequeues file descriptors from the scheduler
+* Calls `request_handle(fd)`
+* Runs in parallel to handle multiple clients
+
+`request.c` - **HTTP request handler**
+* Parses the URI
+* Validates paths for security
+* Serves static files
+* Sends HTTP headers + body
+
+`io_helper.c` - **Networking utilities**
+* Safe wrappers for socket creationg, `accept()`, reading/writing
+* Helper functions like `open_listen_fd_or_die()`
+
+`wclient.c` - **Test client**
+* Sends HTTP/1.0 requests to the server
+* Used by `tests/` for concurrency load testing.
+
+
+---
+
+
+## Build and Run
+
+### **Build**
+
+From the project root
+
 ```bash
-$ ./wserver -d . -p 8003 -t 8 -b 16
+make clean
+make
 ```
 
-In this case, your web server will listen to port 8003, create 8 worker threads for
-handling HTTP requests, allocate 16 buffers for connections that are currently
-in progress (or waiting), and use SFF scheduling for arriving requests.
+This produces:
+* `wserver`
+* `wclient`
+* `spin.cgi` (not tested yet)
 
-Then, on the other terminal, you could request something to server as:
+
+### **Run the Server**
+
 ```bash
-$ ./wclient localhost 8003 /<Name_Of_File>
+./wserver -d www -p 8000 -t 4 -b 5
 ```
 
-# Source Code Overview
+- Configurable:
+  - **basedir** (`-d`): directory to serve files from (e.g. `www/`)
+  - **port** (`-p`): listening port
+  - **threads** (`-t`): number of worker threads
+  - **buffers** (`-b`): size of the scheduler queue
 
-We recommend understanding how the code that we gave you works.  We provide
-the following files:
 
-- [`wserver.c`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/wserver.c): Contains `main()` for the web server and the basic serving loop.
-- [`request.c`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/request.c): Performs most of the work for handling requests in the basic
-  web server. Start at `request_handle()` and work through the logic from
-  there. 
-- [`io_helper.h`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/io_helper.h) and [`io_helper.c`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/io_helper.c): Contains wrapper functions for the system calls invoked by
-  the basic web server and client. The convention is to add `_or_die` to an
-  existing call to provide a version that either succeeds or exits. For
-  example, the `open()` system call is used to open a file, but can fail for a
-  number of reasons. The wrapper, `open_or_die()`, either successfully opens a
-  file or exists upon failure. 
-- [`wclient.c`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/wclient.c): Contains main() and the support routines for the very simple
-  web client. To test your server, you may want to change this code so that it
-  can send simultaneous requests to your server. By launching `wclient`
-  multiple times, you can test how your server handles concurrent requests.
-- [`Makefile`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/Makefile): We also provide you with a sample Makefile that creates
-  `wserver`, `wclient`. You can type make to create all of 
-  these programs. You can type make clean to remove the object files and the
-  executables. You can type make server to create just the server program,
-  etc. As you create new files, you will need to add them to the Makefile.
-- [`thread_pool.c`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/thread_pool.c) and [`thread_pool.h`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/thread_pool.h): Contains basic function structure of thread pool. You can use the existing backbone of the structure to implement multi-thread pool for webserver or you can start from your own structure. But, you must implement your thread pool on here to get a point.
-- [`scheduler.c`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/scheduler.c) and [`scheduler.h`](https://github.com/rufquf2628/CS5204-Spring25/blob/main/src/scheduler.h): Contains basic function structure of scheduler. You can use the existing backbone of the structure to implement SFF scheduler for webserver or you can start from your own structure. But, you must implement your scheduler on here to get a point.
-- [`data`](https://github.com/rufquf2628/CS5204-Spring25/tree/main/src/data): The `data` directory contains some dummy data with various file sizes. You can use it to test your multi-thread webserver and SFF scheduler. You should set this directory as a basedir of the server. `prompt> ./wserver -d ./data`
+### **Test with Curl**
+In another terminal:
 
-- `spin.cgi`: It is a dynamic execution file that client can request the server to spin in some seconds. For example, you can request the server to spin for 5 seconds by command line `./wclient localhost 8000 /spin.cgi?5`. Then, your server (or worker) will spin for 5 second and not accepting any request during that time.
+```bash
+curl http://localhost:8000/small.html
+curl http://localhost:8000;huge.html
+```
 
-The best way to learn about the code is to compile it and run it. Run the
-server we gave you with your preferred web browser. Run this server with the
-client code we gave you. You can even have the client code we gave you contact
-any other server that speaks HTTP. Make small changes to the server code
-(e.g., have it print out more debugging information) to see if you understand
-how it works.
+### **Run Automated Tests
+With server running:
 
-# What to Submit
+```bash
+cd tests
 
-For the submission, you must provide a tarball (.tar.gz) that contains the following:
- 1. A pdf file that includes the write-up for Task 1
- 2. A file that include `wserver.c`, `wclient.c`, `request.c` / `request.h`, `io_helper.c` / `io_helper.h`, `thread_pool.c` / `thread_pool.h`, `scheduler.c` / `scheduler.h`, `Makefile`, and any files that you added for project. (You can add your own .c and .h files for this project but your project must be compiled through `make` command. So, you should properly modify `Makefile` to get a point.)
+./test_sff.sh        # Tests SFF (Smallest File First) scheduling under mixed workloads.
+                     # Sends many concurrent small + huge file requests to verify that
+                     # small files are served quickly even when large files are present.
 
-IF YOUR PROJECT IS NOT COMPILED, YOU WILL LOSE POINTS.
+./test_starvation.sh # Tests for starvation behavior.
+                     # Ensures that large-file requests eventually get served even when
+                     # a continuous stream of small-file requests is present.
 
-## Additional Useful Reading
+./test_traversal.sh  # Tests scheduler queue traversal and ordering.
+                     # Verifies correct dequeue order (FIFO/SFF), checks for queue
+                     # pointer bugs, and ensures the bounded buffer behaves correctly.
+```
+This will launch multiple concurrent `wclient` calls to evaluate the scheduling behavior.
 
-We anticipate that you will find the following routines useful for creating
-and synchronizing threads: `pthread_create()`, `pthread_mutex_init()`,
-`pthread_mutex_lock()`, `pthread_mutex_unlock()`, `pthread_cond_init()`,
-`pthread_cond_wait()`, `pthread_cond_signal()`. To find information on these
-library routines, read the man pages (RTFM). 
+---
 
+## Author
+
+**Felipe Campoverde**
+Computer Science @ Virginia Tech
+
+* Portfolio: https://fcampoverdeg.dev
+* Email: fcampoverdeg@gmail.com
+
+---
+
+## License
+
+This project is released under the **MIT License**.
+
+---
