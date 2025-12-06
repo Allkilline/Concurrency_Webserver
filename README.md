@@ -161,7 +161,7 @@ This will launch multiple concurrent `wclient` calls to evaluate the scheduling 
 
 ## Author
 
-**Felipe Campoverde**
+**Felipe Campoverde**  
 Computer Science @ Virginia Tech
 
 * Portfolio: https://fcampoverdeg.dev
