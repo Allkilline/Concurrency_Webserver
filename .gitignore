@@ -1,0 +1,8 @@
+# Build artifacts
+*.o
+wserver
+wclient
+spin.cgi
+
+# macOS
+.DS_Store
